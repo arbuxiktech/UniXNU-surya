@@ -75,6 +75,8 @@ jobs:
 
       - name: Build Darwin 22 kernel
         working-directory: unixnu
+        env:
+          XNU_PATCH_OVERLAY: ${{ github.workspace }}/device/ports/surya/patches/xnu
         run: |
           ./unixnu build kernel -D "$GITHUB_WORKSPACE/device/ports/surya" \
             --out "$RUNNER_TEMP/unixnu-out" -j "$(sysctl -n hw.logicalcpu)"

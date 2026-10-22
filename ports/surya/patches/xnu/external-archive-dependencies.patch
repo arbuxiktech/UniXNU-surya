@@ -1,0 +1,13 @@
+diff --git a/makedefs/MakeInc.kernel b/makedefs/MakeInc.kernel
+--- a/makedefs/MakeInc.kernel
++++ b/makedefs/MakeInc.kernel
+@@ -80,6 +80,8 @@
+ do_build_all:: do_build_kernel
+ 
+ .PHONY: do_build_kernel
+ 
++$(TARGET)/$(KERNEL_FILE_NAME).unstripped: $(XNU_EXTERNAL_KERNEL_ARCHIVES)
++
+ ifeq ($(BUILD_XNU_LIBRARY),1)
+ do_build_kernel: $(KERNEL_STATIC_LINK_TARGETS)
+ 

@@ -25,6 +25,13 @@ configuration is for conservative single-core entry work. UFS, APFS root
 assembly, display, touch, SMP, and Adreno are not enabled in this baseline.
 No UniXNU kernel build or full iOS userspace boot is claimed.
 
+The Darwin 22 build selects XNU 8796-compatible patches explicitly. Its small
+Surya overlay adapts the non-Apple CPU startup guard, external archive
+dependency rule, and 64-bit physical-page cache flush. Patches tied to XNU
+10063 or optional features disabled in this defconfig are skipped by exact
+filename; the build log prints each skipped patch. The output name and minimum
+iOS target are also set for the iOS 16 XNU build.
+
 The payload and userdata sections are intentionally absent. The stored stock
 DTB has a zeroed /memory reg property, so it does not verify total DRAM. The
 userdata GPT geometry and root volume identifiers also need device-specific

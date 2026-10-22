@@ -9,6 +9,11 @@ XNU_TAG=${UNIXNU_XNU_TAG:-xnu-10063.141.1}
 XNU_COMMIT=${UNIXNU_XNU_COMMIT:-d8b80295118ef25ac3a784134bcf95cd8e88109f}
 XNU_DARWIN=${UNIXNU_XNU_DARWIN:-23.6.0}
 XNU_VERSION=${UNIXNU_XNU_VERSION:-10063.141.1}
+XNU_KERNEL_OUTPUT=${XNU_KERNEL_OUTPUT:-mach.development.bcm2837.unstripped.noctf}
+XNU_IOS_VERSION=${XNU_IOS_VERSION:-17.0}
+XNU_PATCH_OVERLAY=${XNU_PATCH_OVERLAY:-}
+XNU_PATCH_SKIP=${XNU_PATCH_SKIP:-}
+export XNU_KERNEL_OUTPUT XNU_IOS_VERSION
 LIBPLATFORM_TAG=${UNIXNU_LIBPLATFORM_TAG:-libplatform-316.100.10}
 LIBDISPATCH_TAG=${UNIXNU_LIBDISPATCH_TAG:-libdispatch-1477.100.9}
 AVAILABILITY_TAG=${UNIXNU_AVAILABILITYVERSIONS_TAG:-AvailabilityVersions-141.1}
@@ -21,6 +26,10 @@ if [ "$(git -C refer/xnu rev-parse HEAD)" != "$XNU_COMMIT" ]; then
 fi
 if [ ! -d .cache/xnu-work/.git ]; then
   git clone --shared refer/xnu .cache/xnu-work
+fi
+if [ -n "$XNU_PATCH_OVERLAY" ] && [ ! -d "$XNU_PATCH_OVERLAY" ]; then
+  echo "XNU_PATCH_OVERLAY directory not found: $XNU_PATCH_OVERLAY" >&2
+  exit 1
 fi
 if [ ! -x .cache/fakeroot/usr/local/libexec/availability.pl ]; then
   if [ ! -d refer/AvailabilityVersions/.git ]; then
@@ -41,7 +50,26 @@ for LATE_PATCH in "$ROOT/patches/xnu/zzz-boot-progress.patch" "$ROOT/patches/xnu
     git -C .cache/xnu-work apply --reverse "$LATE_PATCH"
   fi
 done
+patch_is_skipped() {
+  local name entry
+  name=$(basename "$1")
+  IFS=',' read -r -a skipped_patches <<< "$XNU_PATCH_SKIP"
+  for entry in "${skipped_patches[@]}"; do
+    if [ "$entry" = "$name" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
 for PATCH in "$ROOT"/patches/xnu/*.patch "$ROOT"/kits/NativePrelink/patches/*.patch; do
+  if patch_is_skipped "$PATCH"; then
+    echo "XNU patch profile: skipping $(basename "$PATCH") for Darwin $XNU_DARWIN"
+    continue
+  fi
+  if [ -n "$XNU_PATCH_OVERLAY" ] && [ -f "$XNU_PATCH_OVERLAY/$(basename "$PATCH")" ]; then
+    PATCH="$XNU_PATCH_OVERLAY/$(basename "$PATCH")"
+    echo "XNU patch profile: using Surya override $(basename "$PATCH")"
+  fi
   if ! git -C .cache/xnu-work apply --reverse --check "$PATCH" >/dev/null 2>&1; then
     git -C .cache/xnu-work apply --check "$PATCH"
     git -C .cache/xnu-work apply "$PATCH"
@@ -81,7 +109,7 @@ if not stamp.exists() or stamp.read_text() != identity:
                              ('bsd', ['bsd_init','kern_exec','kern_exit']), ('pexpert', ['pe_kprintf'])]:
         for name in names:
             (out / directory / 'DEVELOPMENT' / (name + '.o')).unlink(missing_ok=True)
-    (out / 'mach.development.bcm2837.unstripped.noctf').unlink(missing_ok=True)
+    (out / os.environ['XNU_KERNEL_OUTPUT']).unlink(missing_ok=True)
     out.mkdir(parents=True, exist_ok=True)
     stamp.write_text(identity)
 PY
@@ -764,7 +792,7 @@ identity = '|'.join(mode + ':' + state(mode, archive) for mode, archive in zip(s
 if not stamp.exists() or stamp.read_text() != identity:
     # Make does not track selection of an older alternative external archive.
     # Rebuild the conditional personality and relink when this input changes.
-    for relative in ('mach.development.bcm2837.unstripped.noctf',
+    for relative in (os.environ['XNU_KERNEL_OUTPUT'],
                      'iokit/DEVELOPMENT/KernelConfigTables.cpo'):
         (directory / relative).unlink(missing_ok=True)
     directory.mkdir(parents=True, exist_ok=True)
@@ -775,13 +803,13 @@ make -C .cache/xnu-work "${XNU_BUILD_TARGET:-build}" SDKROOT="${XNU_SDKROOT:-iph
   MACHINE_CONFIGS=BCM2837 KERNEL_CONFIGS=DEVELOPMENT \
   ARCH_STRING_FOR_CURRENT_MACHINE_CONFIG=arm64 LARGE_MEMORY_DEFINE=-UARM_LARGE_MEMORY \
   ARM64_LINK_ADDR=0xfffffff007004000 ARM64_PLKSEG_ADDR=0xfffffff004004000 \
-  DEPLOYMENT_TARGET_FLAGS="-miphoneos-version-min=17.0 -DXNU_TARGET_OS_IOS" \
-  DEPLOYMENT_LINKER_FLAGS="-Wl,-ios_version_min,17.0" \
+  DEPLOYMENT_TARGET_FLAGS="-miphoneos-version-min=$XNU_IOS_VERSION -DXNU_TARGET_OS_IOS" \
+  DEPLOYMENT_LINKER_FLAGS="-Wl,-ios_version_min,$XNU_IOS_VERSION" \
   RC_DARWIN_KERNEL_VERSION="$XNU_DARWIN" RC_ProjectSourceVersion="$XNU_VERSION" \
   BUILD_LTO=0 BOUND_CHECKS=0 BUILD_WERROR="${XNU_BUILD_WERROR:-0}" MAKEJOBS=-j"${JOBS:-4}" \
   CFLAGS_EXTRA="$EXTRA_CFLAGS" "${EXTRA_MAKE_ARGS[@]}" \
   OBJROOT="$ROOT/build/xnu/ios-obj" SYMROOT="$ROOT/build/xnu/ios-sym" DSTROOT="$ROOT/build/xnu/ios-dst"
 if [ "${XNU_SOURCE_CORECRYPTO14:-0}" = 1 ] && [ "$CRYPTO_BOOTSTRAP_MODE" = source ]; then
   python3 scripts/seal-source-crypto-kernel.py \
-    build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837.unstripped.noctf
+    "build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/$XNU_KERNEL_OUTPUT"
 fi
