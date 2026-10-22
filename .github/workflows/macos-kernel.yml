@@ -12,10 +12,18 @@ on:
     paths:
       - ".github/workflows/macos-kernel.yml"
       - "ports/surya/**"
+      - "feeds.toml"
+      - "patches/xnu/**"
+      - "scripts/build-xnu-4k-baseline.sh"
+      - "scripts/prepare-xnu-source.py"
   pull_request:
     paths:
       - ".github/workflows/macos-kernel.yml"
       - "ports/surya/**"
+      - "feeds.toml"
+      - "patches/xnu/**"
+      - "scripts/build-xnu-4k-baseline.sh"
+      - "scripts/prepare-xnu-source.py"
 
 permissions:
   contents: read
@@ -73,10 +81,8 @@ jobs:
             corecrypto-2023 IOStorageFamily \
             -D "$GITHUB_WORKSPACE/device/ports/surya" --out "$RUNNER_TEMP/unixnu-out"
 
-      - name: Build Darwin 22 kernel
+      - name: Build Darwin 23 kernel
         working-directory: unixnu
-        env:
-          XNU_PATCH_OVERLAY: ${{ github.workspace }}/device/ports/surya/patches/xnu
         run: |
           ./unixnu build kernel -D "$GITHUB_WORKSPACE/device/ports/surya" \
             --out "$RUNNER_TEMP/unixnu-out" -j "$(sysctl -n hw.logicalcpu)"
@@ -85,7 +91,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: surya-darwin22-kernel-${{ github.run_number }}
+          name: surya-darwin23-kernel-${{ github.run_number }}
           path: |
             ${{ runner.temp }}/unixnu-out/*/kernel/kernel.macho
             ${{ runner.temp }}/unixnu-out/*/logs/**

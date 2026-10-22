@@ -1,4 +1,4 @@
-# Conservative iOS 16.7.16 kernel-entry bring-up.
+# Conservative Darwin 23 / iPadOS 17 kernel-entry bring-up.
 # Enable UFS, display, touch, SMP and GPU only after their Surya paths are validated.
 CONFIG_XNU_BUILD_ARCHIVES=y
 CONFIG_XNU_SOURCE_CORECRYPTO14=y
@@ -6,9 +6,8 @@ CONFIG_XNU_SOURCE_PTHREAD=y
 CONFIG_XNU_ARM_DT_PLATFORM=y
 CONFIG_XNU_ARMCPU=y
 CONFIG_XNU_CRYPTO_BOOTSTRAP="prelinked"
-CONFIG_XNU_KERNEL_OUTPUT="mach.development.bcm2837.unstripped"
-CONFIG_XNU_IOS_VERSION="16.0"
-CONFIG_XNU_PATCH_SKIP="native-aes-personality.patch,offline-owner-systemos-mount.patch,pgz-aligned-validation.patch,public-entitlements-header.patch,published-freezer-condition.patch,source-machine-layer.patch,zzy-native-gpu-addon-mount.patch,zzy-staged-system-apps.patch,zzz-boot-progress.patch,xnu-10063.141.1-security-init.patch,xnu-10063.141.1-sparse-index.patch"
+CONFIG_XNU_KERNEL_OUTPUT="mach.development.bcm2837.unstripped.noctf"
+CONFIG_XNU_IOS_VERSION="17.0"
 # CONFIG_XNU_ARMVIRT_PLATFORM is not set
 # CONFIG_XNU_NATIVE_UFS is not set
 # CONFIG_XNU_NATIVE_ADRENO is not set

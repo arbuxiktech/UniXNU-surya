@@ -99,7 +99,7 @@ if [ "$BOOT_PROGRESS" = 1 ]; then
 fi
 python3 - "$BOOT_PROGRESS" <<'PY'
 from pathlib import Path
-import hashlib, sys
+import hashlib, os, sys
 mode = sys.argv[1]
 out = Path('build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837')
 stamp = out / '.boot-progress-mode'
@@ -773,7 +773,7 @@ python3 - "${XNU_NATIVE_AES:-0}" "${XNU_NATIVE_AES_ARCHIVE:-$ROOT/build/native-a
   "$NATIVE_OFFLINE_GPU" "$ROOT/build/native-offline-gpu/libNativeOfflineGPU.late.a" \
   "$SHENG_PMGR" "$ROOT/build/sheng-platform-power/libShengPlatformPower.a" \
   "${XNU_NATIVE_ADRENO:-0}" "$ROOT/build/native-adreno/libNativeAdreno.a" <<'PY'
-import hashlib
+import hashlib, os
 from pathlib import Path
 import sys
 directory = Path('build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837')
