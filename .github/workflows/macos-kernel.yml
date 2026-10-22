@@ -1,0 +1,95 @@
+name: Surya macOS kernel build
+
+on:
+  workflow_dispatch:
+    inputs:
+      unixnu_ref:
+        description: UniXNU revision to build (branch, tag, or commit; defaults to this revision)
+        required: false
+        default: ""
+  push:
+    branches: [main, "codex/**"]
+    paths:
+      - ".github/workflows/macos-kernel.yml"
+      - "ports/surya/**"
+  pull_request:
+    paths:
+      - ".github/workflows/macos-kernel.yml"
+      - "ports/surya/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: surya-kernel-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HOMEBREW_NO_AUTO_UPDATE: 1
+  HOMEBREW_NO_INSTALL_CLEANUP: 1
+
+jobs:
+  build-kernel:
+    runs-on: macos-15-intel
+    timeout-minutes: 360
+    steps:
+      - name: Check out Surya board configuration
+        uses: actions/checkout@v6
+        with:
+          path: device
+          ref: ${{ github.sha }}
+
+      - name: Check out UniXNU source from this fork
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ inputs.unixnu_ref || github.sha }}
+          path: unixnu
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Report macOS toolchain
+        run: |
+          sw_vers
+          uname -m
+          xcodebuild -version
+          xcode-select -p
+
+      - name: Install build tools
+        run: |
+          brew install cmake ninja unifdef llvm mtools dtc
+          echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
+          echo "$(brew --prefix unifdef)/bin" >> "$GITHUB_PATH"
+
+      - name: Select Surya configuration and fetch pinned sources
+        working-directory: unixnu
+        run: |
+          ./unixnu defconfig surya_defconfig -D "$GITHUB_WORKSPACE/device/ports/surya" --out "$RUNNER_TEMP/unixnu-out"
+          ./unixnu fetch xnu libplatform libdispatch AvailabilityVersions libpthread \
+            corecrypto-2023 IOStorageFamily \
+            -D "$GITHUB_WORKSPACE/device/ports/surya" --out "$RUNNER_TEMP/unixnu-out"
+
+      - name: Build Darwin 22 kernel
+        working-directory: unixnu
+        run: |
+          ./unixnu build kernel -D "$GITHUB_WORKSPACE/device/ports/surya" \
+            --out "$RUNNER_TEMP/unixnu-out" -j "$(sysctl -n hw.logicalcpu)"
+
+      - name: Upload kernel and build logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: surya-darwin22-kernel-${{ github.run_number }}
+          path: |
+            ${{ runner.temp }}/unixnu-out/*/kernel/kernel.macho
+            ${{ runner.temp }}/unixnu-out/*/logs/**
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Remove downloaded source caches
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/unixnu-out"
