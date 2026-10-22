@@ -53,6 +53,11 @@ done
 patch_is_skipped() {
   local name entry
   name=$(basename "$1")
+  # macOS runners use Bash 3.2, where expanding an empty array under
+  # `set -u` raises an unbound-variable error. An empty skip list is normal.
+  if [ -z "$XNU_PATCH_SKIP" ]; then
+    return 1
+  fi
   IFS=',' read -r -a skipped_patches <<< "$XNU_PATCH_SKIP"
   for entry in "${skipped_patches[@]}"; do
     if [ "$entry" = "$name" ]; then
